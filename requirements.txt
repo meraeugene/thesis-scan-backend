@@ -12,7 +12,6 @@ python-multipart
 passlib[bcrypt]
 psycopg2-binary
 
-# FORCE CPU ONLY TORCH (no CUDA → smaller)
 torch==2.0.0+cpu
 torchvision==0.15.0+cpu
 torchaudio==2.0.0+cpu
