@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+pydantic
+pillow
+opencv-python-headless
+numpy
+python-multipart
+python-dotenv
+easyocr
+python-jose
+passlib[bcrypt]
+pyjwt
+dotenv
