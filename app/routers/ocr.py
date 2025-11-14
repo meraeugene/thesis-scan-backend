@@ -9,7 +9,7 @@ router = APIRouter()
 # ------------------------------
 # Optimized EasyOCR reader
 # ------------------------------
-reader = easyocr.Reader(['en'], gpu=True, quantize=True)
+reader = easyocr.Reader(['en'], gpu=False, detector=False)
 
 # ------------------------------
 # UTILITIES

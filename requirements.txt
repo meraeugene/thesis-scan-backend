@@ -11,7 +11,3 @@ pillow
 python-multipart
 passlib[bcrypt]
 psycopg2-binary
-
-torch==2.1.0
-torchvision==0.16.0
-torchaudio==2.1.0
