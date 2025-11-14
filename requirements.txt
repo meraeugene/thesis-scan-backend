@@ -10,3 +10,4 @@ easyocr
 pillow
 python-multipart
 passlib[bcrypt]
+psycopg2-binary
