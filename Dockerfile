@@ -14,13 +14,11 @@ COPY requirements.txt .
 # Install Python packages without cache
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app
+# Copy the rest of the app
 COPY . .
 
-# Railway provides $PORT at runtime
-ENV PORT=8080
-
+# Expose but do NOT set PORT
 EXPOSE 8080
 
-# Use sh -c so $PORT becomes a valid integer at runtime
+# Use $PORT from Railway runtime
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port $PORT"]
