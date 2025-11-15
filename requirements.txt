@@ -5,7 +5,7 @@ torchvision==0.17.2+cpu
 easyocr==1.7.1
 opencv-python-headless
 pillow
-numpy
+numpy<2
 
 fastapi
 uvicorn
