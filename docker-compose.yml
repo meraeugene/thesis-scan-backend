@@ -3,13 +3,13 @@ services:
     image: postgres:15
     restart: always
     environment:
-      POSTGRES_USER: thesiscan_admin
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: thesiscan_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: qWxdxHPwqEEIBZckfQsWIdUaQKDseiaD
+      POSTGRES_DB: railway
     ports:
       - "5432:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data/pgdata
 
   api:
     build: .
@@ -19,7 +19,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://thesiscan_admin:password@db:5432/thesiscan_db
+      DATABASE_URL: postgresql://postgres:qWxdxHPwqEEIBZckfQsWIdUaQKDseiaD@gondola.proxy.rlwy.net:13656/railway
 
 volumes:
   db_data:
