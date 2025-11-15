@@ -1,8 +1,7 @@
-
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import os
 from app.routers import users, theses, auth, reports, ocr
 from app.config import STATIC_DIR
 
@@ -12,13 +11,11 @@ app = FastAPI()
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    # allow_origins=["https://thesis-scan.vercel.app/"],  # Allow all origins for development
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=["*"],  # You can restrict this in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # Mount static files
 if os.path.exists(STATIC_DIR):
@@ -26,8 +23,17 @@ if os.path.exists(STATIC_DIR):
 else:
     print(f"Warning: Static directory {STATIC_DIR} does not exist.")
 
+# Include routers
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(theses.router)
 app.include_router(reports.router)
 app.include_router(ocr.router)
+
+# --- ENTRY POINT FOR RAILWAY ---
+if __name__ == "__main__":
+    import uvicorn
+
+    # Read port from environment variable or default to 8080
+    PORT = int(os.environ.get("PORT", 8080))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=PORT)
