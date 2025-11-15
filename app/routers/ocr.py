@@ -14,47 +14,76 @@ reader = easyocr.Reader(['en'], gpu=False)
 # ------------------------------
 # UTILITIES
 # ------------------------------
-def _read_image(file: UploadFile):
-    """Read uploaded file, convert to grayscale, and resize if needed."""
+def _read_image(file: UploadFile, max_width=800):
+    """
+    Fast image preprocessing for OCR:
+    - Resize early
+    - Convert to grayscale
+    - Apply light thresholding
+    """
+    # 1️⃣ Read bytes
     contents = file.file.read()
+    
+    # 2️⃣ Decode image
     arr = np.frombuffer(contents, np.uint8)
     img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-
-    # Convert to grayscale
+    
+    # 3️⃣ Resize if too wide
+    h, w = img.shape[:2]
+    if w > max_width:
+        scale = max_width / w
+        img = cv2.resize(img, (max_width, int(h * scale)), interpolation=cv2.INTER_AREA)
+    
+    # 4️⃣ Convert to grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # Resize to max width 1024px
-    h, w = gray.shape[:2]
-    if w > 1024:
-        scale = 1024 / w
-        gray = cv2.resize(gray, (1024, int(h * scale)), interpolation=cv2.INTER_AREA)
-
+    
+    # 5️⃣ Fast denoising and threshold
+    gray = cv2.medianBlur(gray, 3)  # lighter than Gaussian
+    _, gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    
     return gray
 
+
 def _ocr_with_confidence(img_gray, keyword_mode=False):
-    """Perform OCR and return extracted texts and average confidence."""
+    """
+    Fast EasyOCR for speed:
+    - Use lower mag_ratio
+    - Reduce thresholds for faster text detection
+    """
+    # Optional: lightweight denoise for keywords
     if keyword_mode:
-        img_gray = cv2.bilateralFilter(img_gray, 5, 50, 50)
-    rgb = cv2.cvtColor(img_gray, cv2.COLOR_GRAY2RGB)
+        img_gray = cv2.bilateralFilter(img_gray, 3, 30, 30)
+
+    # Convert to RGB for EasyOCR
+    if len(img_gray.shape) == 2:
+        img_rgb = cv2.cvtColor(img_gray, cv2.COLOR_GRAY2RGB)
+    else:
+        img_rgb = img_gray
+
+    # OCR
     results = reader.readtext(
-        rgb,
+        img_rgb,
         detail=1,
         paragraph=False,
-        mag_ratio=1.0,
-        text_threshold=0.25 if keyword_mode else 0.3,
-        low_text=0.25 if keyword_mode else 0.3,
-        link_threshold=0.3,
-        contrast_ths=0.1,
-        adjust_contrast=0.5
+        mag_ratio=0.4,              # smaller magnification = faster
+        text_threshold=0.2,         # slightly lower to detect faint text
+        low_text=0.2,               # faster detection
+        link_threshold=0.25,        # lower for speed
+        contrast_ths=0.05,          # minimal contrast adjustment
+        adjust_contrast=0.4
     )
+
     texts, confidences = [], []
-    for (_, text, conf) in results:
-        t = text.strip()
-        if t:
-            texts.append(t)
+    for _, text, conf in results:
+        text = text.strip()
+        if text:
+            texts.append(text)
             confidences.append(conf)
-    avg_conf = np.mean(confidences) * 100 if confidences else 0
-    return texts, round(avg_conf, 2)
+
+    avg_conf = round(np.mean(confidences) * 100, 2) if confidences else 0
+    return texts, avg_conf
+
+
 
 def _fix_text_punctuation(text: str) -> str:
     """Fix OCR punctuation: convert ; to , where appropriate and fix missing periods."""
