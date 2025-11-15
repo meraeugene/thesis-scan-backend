@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 # load_dotenv()  # loads .env into environment
 
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+SQLALCHEMY_DATABASE_URL = "postgresql://postgres:qWxdxHPwqEEIBZckfQsWIdUaQKDseiaD@gondola.proxy.rlwy.net:13656/railway"
 
 if not SQLALCHEMY_DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable not set")
