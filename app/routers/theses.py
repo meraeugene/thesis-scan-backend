@@ -11,7 +11,7 @@ def get_db():
     finally:
         db.close()
 
-@router.post("/theses/", response_model=schemas.ThesisOut)
+@router.post("/theses/add", response_model=schemas.ThesisOut)
 def create_thesis(thesis: schemas.ThesisCreate, db: Session = Depends(get_db)):
     return crud.create_thesis(db, thesis)
 
