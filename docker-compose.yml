@@ -19,7 +19,15 @@ services:
     ports:
       - "8000:8000"
     environment:
+      SECRET_KEY: f1e2d3a4b5c67890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+      RESET_EXPIRE_MINUTES: 30
+      FRONTEND_RESET_URL: https://thesis-scan.vercel.app/studResetPass.html
       DATABASE_URL: postgresql://postgres:qWxdxHPwqEEIBZckfQsWIdUaQKDseiaD@gondola.proxy.rlwy.net:13656/railway
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 465
+      EMAIL_USER: alyasgdrive@gmail.com
+      EMAIL_PASS: "cnsb vlzc zgmc rzsd"
+      EMAIL_FROM_NAME: ThesiScan
 
 volumes:
   db_data:
