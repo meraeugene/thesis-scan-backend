@@ -7,11 +7,11 @@ import os
 from app import crud, models
 from app.database import SessionLocal
 from app.utils.emailer import send_reset_email
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
 
 router = APIRouter()
 
-# load_dotenv()  # uncomment if local testing is needed
+load_dotenv() 
 
 # Config: read from env
 RESET_SECRET =  os.getenv("SECRET_KEY") 
@@ -55,6 +55,9 @@ def forgot_password(email: str = Form(...), db: Session = Depends(get_db)):
     Returns 404 if not found.
     """
     user = crud.get_user_by_email(db, email=email)
+
+    print("Forgot password requested for email:", email)
+    print("User found:", user is not None)
 
     #  If the email does NOT exist → return error
     if not user:

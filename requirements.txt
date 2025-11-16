@@ -15,3 +15,6 @@ PyJWT
 python-multipart
 passlib[bcrypt]
 psycopg2-binary
+
+# brevo
+sib-api-v3-sdk

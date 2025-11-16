@@ -1,58 +1,47 @@
 # app/utils/emailer.py
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
+from sib_api_v3_sdk import ApiClient, Configuration
+from sib_api_v3_sdk.api.transactional_emails_api import TransactionalEmailsApi
+from sib_api_v3_sdk.models.send_smtp_email import SendSmtpEmail
+from sib_api_v3_sdk.models.send_smtp_email_to1 import SendSmtpEmailTo1
+from sib_api_v3_sdk.rest import ApiException
 
-# load_dotenv()  # uncomment if local testing is needed
+load_dotenv()
 
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))  # 465 for SSL
-SMTP_USER = os.getenv("EMAIL_USER")
-SMTP_PASS = os.getenv("EMAIL_PASS")  # app-specific password or real SMTP password
+API_KEY = os.getenv("BREVO_API_KEY")
 FROM_NAME = os.getenv("EMAIL_FROM_NAME", "ThesiScan")
-FROM_EMAIL = SMTP_USER
+FROM_EMAIL = os.getenv("EMAIL_FROM_EMAIL", "no-reply@thesiscan.com")
 
-if not SMTP_USER or not SMTP_PASS:
-    # we don't raise here because dev/test environments may not have SMTP configured.
-    pass
+if not API_KEY:
+    raise RuntimeError("BREVO_API_KEY not set in environment variables.")
+
+# Initialize ApiClient once
+configuration = Configuration()
+configuration.api_key['api-key'] = API_KEY
+api_client = ApiClient(configuration)
+smtp_api = TransactionalEmailsApi(api_client)
 
 def send_reset_email(to_email: str, reset_link: str, recipient_name: str | None = None):
-    """
-    Sends a password reset email. Raises Exception/HTTPException on failure.
-    """
+    recipient_name = recipient_name or "User"
     subject = "ThesiScan — Password Reset"
-    display_name = FROM_NAME
-    from_addr = FROM_EMAIL
-
-    html_body = f"""
-    <p>Hi {recipient_name or ''},</p>
-    <p>You recently requested a password reset for your ThesiScan account. Click the link below to reset your password. This link will expire in a short time.</p>
-    <p><a href="{reset_link}">Reset your password</a></p>
+    html_content = f"""
+    <p>Hi {recipient_name},</p>
+    <p>You recently requested a password reset for your ThesiScan account. Click the link below to reset your password:</p>
+    <p><a href="{reset_link}">Reset Password</a></p>
     <p>If you did not request this, you can safely ignore this email.</p>
     <p>— ThesiScan Team</p>
     """
 
-    # plain text fallback
-    text_body = f"Reset your password: {reset_link}"
+    email = SendSmtpEmail(
+        to=[SendSmtpEmailTo1(email=to_email, name=recipient_name)],
+        sender={"name": FROM_NAME, "email": FROM_EMAIL},
+        subject=subject,
+        html_content=html_content
+    )
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = f"{display_name} <{from_addr}>"
-    msg["To"] = to_email
-
-    part1 = MIMEText(text_body, "plain")
-    part2 = MIMEText(html_body, "html")
-    msg.attach(part1)
-    msg.attach(part2)
-
-    # Send via SMTP SSL
     try:
-        server = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=10)
-        server.login(SMTP_USER, SMTP_PASS)
-        server.sendmail(from_addr, [to_email], msg.as_string())
-        server.quit()
-    except Exception as e:
-        # bubble up so calling endpoint returns 500
-        raise Exception(f"Failed to send email: {e}")
+        response = smtp_api.send_transac_email(email)
+        return response
+    except ApiException as e:
+        raise RuntimeError(f"Failed to send email via Brevo API: {e}")
