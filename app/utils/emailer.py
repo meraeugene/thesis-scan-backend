@@ -11,7 +11,7 @@ load_dotenv()
 
 API_KEY = os.getenv("BREVO_API_KEY")
 FROM_NAME = os.getenv("EMAIL_FROM_NAME", "ThesiScan")
-FROM_EMAIL = os.getenv("EMAIL_FROM_EMAIL", "no-reply@thesiscan.com")
+FROM_EMAIL = os.getenv("EMAIL_FROM_EMAIL", "alyasgdrive@gmail.com")
 
 if not API_KEY:
     raise RuntimeError("BREVO_API_KEY not set in environment variables.")
