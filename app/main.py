@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
-from app.routers import users, theses, auth, reports, ocr
+from app.routers import users, theses, auth, reports, ocr, password_reset
 from app.config import STATIC_DIR
 
 # Create app
@@ -26,6 +26,7 @@ if os.path.exists(STATIC_DIR):
 else:
     print(f"Warning: Static directory {STATIC_DIR} does not exist.")
 
+app.include_router(password_reset.router)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(theses.router)

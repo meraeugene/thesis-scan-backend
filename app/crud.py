@@ -109,3 +109,19 @@ def get_users(db: Session):
 def delete_user(db: Session, user):
     db.delete(user)
     db.commit()
+
+def get_user_by_email(db: Session, email: str):
+    return db.query(models.User).filter(models.User.email == email).first()
+
+def update_user_password(db: Session, user, new_password: str):
+    # If you store plaintext passwords (not recommended), assign directly:
+    user.password = new_password
+
+    # If you want hashed passwords (recommended), uncomment below and install passlib:
+    # from passlib.context import CryptContext
+    # pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    # user.password = pwd_context.hash(new_password)
+
+    db.commit()
+    db.refresh(user)
+    return user
