@@ -3,9 +3,9 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
-load_dotenv()  # loads .env into environment
+# load_dotenv()  # uncomment if local testing is needed
 
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))  # 465 for SSL

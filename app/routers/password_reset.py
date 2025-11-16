@@ -7,11 +7,11 @@ import os
 from app import crud, models
 from app.database import SessionLocal
 from app.utils.emailer import send_reset_email
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
 router = APIRouter()
 
-load_dotenv()  # loads .env into environment
+# load_dotenv()  # uncomment if local testing is needed
 
 # Config: read from env
 RESET_SECRET =  os.getenv("SECRET_KEY") 
