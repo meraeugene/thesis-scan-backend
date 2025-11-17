@@ -1,3 +1,4 @@
+# Local dev only
 venv
 __pycache__
 *.pyc
@@ -7,16 +8,19 @@ __pycache__
 .git
 .gitignore
 
-
+# Node / build files
 node_modules
 dist
 build
 
+# Media / temp
 *.jpg
 *.jpeg
 *.png
 *.mp4
 *.pdf
-
 tmp
 data
+
+# OCR runs locally only, libraries excluded from Docker
+# app/routers/ocr.py  <-- DO NOT IGNORE!
