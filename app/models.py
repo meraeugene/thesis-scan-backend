@@ -43,7 +43,7 @@ class Bookmark(Base):
 # SearchHistory model
 class SearchHistory(Base):
   __tablename__ = "search_history"
-  id = Column(Integer, primary_key=True, index=True)
+  id = Column(Integer, primary_key=True, index=True, autoincrement=True)
   student_id = Column(String, nullable=False)
   thesis_id = Column(Integer, nullable=False)
   book_title = Column(String, nullable=False)
