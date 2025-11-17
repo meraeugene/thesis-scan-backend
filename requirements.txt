@@ -1,14 +1,22 @@
+# PyTorch (CPU)
 torch==2.2.2+cpu
 torchvision==0.17.2+cpu
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-easyocr==1.7.1
+# PaddleOCR dependencies
+paddleocr
+paddlepaddle
+
+# Image processing
 opencv-python-headless
 pillow
 numpy<2
 
+# Web / API
 fastapi
 uvicorn
+
+# Database
 sqlalchemy
 python-dotenv
 PyJWT
@@ -16,5 +24,6 @@ python-multipart
 passlib[bcrypt]
 psycopg2-binary
 
-# brevo
+# Email / Messaging
 sib-api-v3-sdk
+

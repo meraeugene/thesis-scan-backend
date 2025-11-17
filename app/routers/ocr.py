@@ -1,219 +1,198 @@
 from fastapi import APIRouter, UploadFile, File
+from paddleocr import PaddleOCR
 import numpy as np
 import cv2
-import easyocr
 import re
+import os
+from dotenv import load_dotenv
 
 router = APIRouter()
 
 # ------------------------------
-# Optimized EasyOCR reader
+# PaddleOCR Setup
 # ------------------------------
-reader = easyocr.Reader(['en'], gpu=True)
+ocr = PaddleOCR(use_angle_cls=True, lang='en')
 
 # ------------------------------
 # UTILITIES
 # ------------------------------
 def _read_image(file: UploadFile):
-    """Read uploaded file, convert to grayscale, and resize if needed."""
     contents = file.file.read()
     arr = np.frombuffer(contents, np.uint8)
     img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-
-    # Convert to grayscale
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # Resize to max width 1024px
-    h, w = gray.shape[:2]
+    h, w = img.shape[:2]
     if w > 1024:
         scale = 1024 / w
-        gray = cv2.resize(gray, (1024, int(h * scale)), interpolation=cv2.INTER_AREA)
+        img = cv2.resize(img, (1024, int(h * scale)), interpolation=cv2.INTER_AREA)
+    return img
 
-    return gray
+def _ocr_image(img):
+    result = ocr.ocr(img)
 
-def _ocr_with_confidence(img_gray, keyword_mode=False):
-    """Perform OCR and return extracted texts and average confidence."""
-    if keyword_mode:
-        img_gray = cv2.bilateralFilter(img_gray, 5, 50, 50)
-    rgb = cv2.cvtColor(img_gray, cv2.COLOR_GRAY2RGB)
-    results = reader.readtext(
-        rgb,
-        detail=1,
-        paragraph=False,
-        mag_ratio=1.0,
-        text_threshold=0.25 if keyword_mode else 0.3,
-        low_text=0.25 if keyword_mode else 0.3,
-        link_threshold=0.3,
-        contrast_ths=0.1,
-        adjust_contrast=0.5
-    )
-    texts, confidences = [], []
-    for (_, text, conf) in results:
-        t = text.strip()
-        if t:
-            texts.append(t)
-            confidences.append(conf)
-    avg_conf = np.mean(confidences) * 100 if confidences else 0
-    return texts, round(avg_conf, 2)
+    # print("DEBUG OCR RAW RESULT:", result)  # keep debug
 
-def _fix_text_punctuation(text: str) -> str:
-    """Fix OCR punctuation: convert ; to , where appropriate and fix missing periods."""
-    text = re.sub(r';(?=\s*[a-zA-Z0-9])', ',', text)
-    text = re.sub(r'(?<!\d):(?!\d)', '.', text)  # replace colon with period if not numeric
-    text = re.sub(r'\s*,\s*', ', ', text)
-    text = re.sub(r'\s*\.\s*', '. ', text)
-    text = re.sub(r'\s+', ' ', text)
-    text = text.strip()
-    if not text.endswith('.'):
-        text += '.'
-    return text
+    texts = []
+    confidences = []
 
-def abbreviate_department(dept_name: str) -> str:
-    """
-    Convert full department name to abbreviation.
-    Example: "Department of Information Technology" -> "BSIT"
-    """
-    if not dept_name:
+    if not result:
+        return texts, 0
+
+    # NEW PaddleOCR output structure
+    for block in result:
+        rec_texts = block.get("rec_texts", [])
+        rec_scores = block.get("rec_scores", [])
+
+        for text, conf in zip(rec_texts, rec_scores):
+            if text and text.strip():
+                texts.append(text.strip())
+                confidences.append(float(conf))
+
+    avg_conf = round(np.mean(confidences) * 100, 2) if confidences else 0
+    return texts, avg_conf
+
+
+
+def abbreviate_program(program: str) -> str:
+    if not program: return None
+    skip = {"of", "the", "in", "and"}
+    words = [w for w in program.split() if w.lower() not in skip]
+    if not words: return None
+    return "".join(w[0].upper() for w in words)
+
+def extract_title(text_lines):
+    # Remove empty or very short lines
+    lines = [line.strip() for line in text_lines if len(line.strip()) > 3]
+    if not lines:
         return None
     
-    # Split words and skip small words like 'of', 'the', 'and'
-    skip_words = {"of", "the", "and"}
-    words = [w for w in dept_name.split() if w.lower() not in skip_words]
+    # Combine lines into a single title
+    # Heuristic: join lines until a line ends with punctuation or last line
+    combined_title = " ".join(lines)
     
-    # Take first letter of each remaining word
-    letters = [w[0].upper() for w in words]
+    # Optional: remove extra whitespace
+    combined_title = re.sub(r'\s+', ' ', combined_title).strip()
     
-    # Prefix with BS (for Bachelor of Science)
-    return "BS" + "".join(letters[1:])  # skip 'D' in 'Department'
+    return combined_title
 
 
+def extract_authors(text_lines):
+    # Remove empty lines and short noise
+    lines = [line.strip() for line in text_lines if len(line.strip()) > 1]
+    if not lines:
+        return None
+    
+    # Combine all lines with commas
+    authors_text = ", ".join(lines)
+    
+    # Optional: remove double commas or extra whitespace
+    authors_text = re.sub(r'\s*,\s*', ', ', authors_text)
+    authors_text = re.sub(r'\s+', ' ', authors_text).strip()
+    
+    return authors_text
+
+
+def extract_program_and_date(text_lines):
+    program_name = None
+    date_published = None
+    for line in text_lines:
+        # Date: look for Month YYYY
+        date_match = re.search(r'([A-Z][a-z]+ \d{4})', line)
+        if date_match:
+            date_published = date_match.group(1)
+        # Program: look for common keywords like "Bachelor", "Master", "BS", "MS"
+        if re.search(r'(Bachelor|Master|BS|MS|Doctor|PhD)', line, re.I):
+            program_name = line.strip()
+    return program_name, date_published
+
+def extract_abstract(text_lines):
+    if not text_lines:
+        return None
+
+    # Join all lines into a single paragraph
+    abstract_text = " ".join([line.strip() for line in text_lines if line.strip()])
+    
+    # Normalize spaces
+    abstract_text = re.sub(r'\s+', ' ', abstract_text).strip()
+    
+    return abstract_text if abstract_text else None
+
+def extract_keywords(text_lines):
+    keywords_list = []
+    capture = False
+    for line in text_lines:
+        if re.search(r'(?i)keywords?', line):
+            capture = True
+            line = re.sub(r'(?i)keywords?\s*[:\-]?\s*', '', line)
+            if line: keywords_list.append(line)
+            continue
+        if capture:
+            if re.match(r'(?i)(abstract|chapter|introduction)', line):
+                break
+            keywords_list.append(line.strip())
+    if not keywords_list: return None
+    keywords_text = ", ".join([k.replace(";", ",").strip() for k in keywords_list])
+    keywords_text = re.sub(r'\s*,\s*', ', ', keywords_text)
+    return keywords_text
 
 # ------------------------------
-# 1) TITLE + AUTHORS
+# OCR Endpoints
 # ------------------------------
-@router.post("/ocr/title-authors/")
-async def ocr_title_authors(images: list[UploadFile] = File(...)):
+@router.post("/ocr/title/")
+async def ocr_title(images: list[UploadFile] = File(...)):
     all_lines, confidences = [], []
     for f in images:
         img = _read_image(f)
-        texts, avg_conf = _ocr_with_confidence(img)
+        texts, avg_conf = _ocr_image(img)
         all_lines.extend(texts)
         confidences.append(avg_conf)
-    title_lines, authors = [], []
-    for line in all_lines:
-        if re.search(r'([A-Z][a-z]+.*,)|([A-Z][a-z]+ [A-Z]\.)', line):
-            authors.append(line)
-        else:
-            if not authors:
-                title_lines.append(line)
-    step_accuracy = round(np.mean(confidences), 2) if confidences else 0
-    return {
-        "title": " ".join(title_lines) if title_lines else None,
-        "authors": ", ".join([a.rstrip(',') for a in authors]) if authors else None,
-        "accuracy": step_accuracy
-    }
+    title = extract_title(all_lines)
+    return {"title": title, "accuracy": round(np.mean(confidences), 2) if confidences else 0}
 
-# ------------------------------
-# 2) PROGRAM / COURSE / DATE
-# ------------------------------
+@router.post("/ocr/authors/")
+async def ocr_authors(images: list[UploadFile] = File(...)):
+    all_lines, confidences = [], []
+    for f in images:
+        img = _read_image(f)
+        texts, avg_conf = _ocr_image(img)
+        all_lines.extend(texts)
+        confidences.append(avg_conf)
+    authors = extract_authors(all_lines)
+    return {"authors": authors, "accuracy": round(np.mean(confidences), 2) if confidences else 0}
+
 @router.post("/ocr/program-date/")
 async def ocr_program_date(images: list[UploadFile] = File(...)):
     all_lines, confidences = [], []
     for f in images:
         img = _read_image(f)
-        texts, avg_conf = _ocr_with_confidence(img)
+        texts, avg_conf = _ocr_image(img)
         all_lines.extend(texts)
         confidences.append(avg_conf)
-
-    department_text, course, date_published = None, None, None
-
-    for s in all_lines:
-        s = s.strip()
-        # Extract department and course
-        if "department" in s.lower() and "college" in s.lower() and not department_text and not course:
-            d_idx = s.lower().find("department")
-            c_idx = s.lower().find("college")
-            department_text = s[d_idx:c_idx].strip()
-            course = s[c_idx:].strip()
-            continue
-
-        # Fallback: department on one line, college on another
-        if not department_text and s.lower().startswith("department"):
-            department_text = s
-        elif department_text and not course and s.lower().startswith("college"):
-            course = s
-
-        # Extract date
-        if not date_published:
-            m = re.search(r"([A-Z][a-z]+ \d{4})", s)
-            if m:
-                date_published = m.group(1)
-
-    # Convert department to abbreviation
-    program_abbrev = abbreviate_department(department_text)
-
-    # Combine program and course
-    program_course = program_abbrev or department_text
-    if course:
-        program_course += f", {course}"
-
-    step_accuracy = round(np.mean(confidences), 2) if confidences else 0
-
+    program, date = extract_program_and_date(all_lines)
     return {
-        "program_course": program_course or None,
-        "date_published": date_published,
-        "accuracy": step_accuracy
+        "program_course": abbreviate_program(program),
+        "program_name": program,
+        "date_published": date,
+        "accuracy": round(np.mean(confidences), 2) if confidences else 0
     }
 
-# ------------------------------
-# 3) ABSTRACT
-# ------------------------------
 @router.post("/ocr/abstract/")
 async def ocr_abstract(images: list[UploadFile] = File(...)):
     all_lines, confidences = [], []
     for f in images:
         img = _read_image(f)
-        texts, avg_conf = _ocr_with_confidence(img)
+        texts, avg_conf = _ocr_image(img)
         all_lines.extend(texts)
         confidences.append(avg_conf)
-    abstract_lines = []
-    for line in all_lines:
-        s = line.strip()
-        if not s: continue
-        if re.match(r"(?i)keywords?\s*[:\-]?", s): break
-        if "keywords" in s.lower(): continue
-        abstract_lines.append(s)
-    abstract_text = " ".join(abstract_lines)
-    abstract_text = _fix_text_punctuation(abstract_text)
-    step_accuracy = round(np.mean(confidences), 2) if confidences else 0
-    return {"abstract": abstract_text if abstract_text else None, "accuracy": step_accuracy}
+    abstract = extract_abstract(all_lines)
+    return {"abstract": abstract, "accuracy": round(np.mean(confidences), 2) if confidences else 0}
 
-# ------------------------------
-# 4) KEYWORDS
-# ------------------------------
 @router.post("/ocr/keywords/")
 async def ocr_keywords(images: list[UploadFile] = File(...)):
     all_lines, confidences = [], []
     for f in images:
         img = _read_image(f)
-        texts, avg_conf = _ocr_with_confidence(img, keyword_mode=True)
+        texts, avg_conf = _ocr_image(img)
         all_lines.extend(texts)
         confidences.append(avg_conf)
-    keywords_list = []
-    capture = False
-    for s in all_lines:
-        if "keyword" in s.lower():
-            capture = True
-            extracted = re.sub(r'(?i)keywords?\s*[:\-]?\s*', "", s)
-            if extracted:
-                keywords_list.append(extracted)
-            continue
-        if capture:
-            if re.match(r"(?i)(abstract|chapter|introduction)", s):
-                break
-            keywords_list.append(s)
-    # join lines, replace ; with , and remove duplicates
-    keywords_text = ", ".join([k.replace(";", ",").strip() for k in keywords_list if k.strip()])
-    keywords_text = re.sub(r'\s*,\s*', ', ', keywords_text)
-    step_accuracy = round(np.mean(confidences), 2) if confidences else 0
-    return {"keywords": keywords_text if keywords_text else None, "accuracy": step_accuracy}
+    keywords = extract_keywords(all_lines)
+    return {"keywords": keywords, "accuracy": round(np.mean(confidences), 2) if confidences else 0}
