@@ -4,8 +4,8 @@ torchvision==0.17.2+cpu
 --extra-index-url https://download.pytorch.org/whl/cpu
 
 # PaddleOCR dependencies
-paddleocr
-paddlepaddle
+# paddleocr
+# paddlepaddle
 
 # Image processing
 opencv-python-headless
