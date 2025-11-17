@@ -1,21 +1,28 @@
-# Use Python image
-FROM python:3.11
+# Use Python 3.11 base image
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy dependencies first (for caching)
-COPY requirements.txt .
-# COPY .env .env
+# Install system dependencies required by OpenCV and Pillow
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libglib2.0-0 \
+    libsm6 \
+    libxrender1 \
+    libxext6 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
+# Copy requirements first for caching
+COPY requirements.txt .
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the project
+# Copy project files
 COPY . .
 
 # Expose FastAPI port
 EXPOSE 8000
 
-# Start the server
+# Start FastAPI server
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
