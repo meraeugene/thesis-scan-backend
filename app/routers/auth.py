@@ -7,6 +7,8 @@ import os
 import jwt
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from app.utils.security import hash_password
+
 
 load_dotenv()  # loads .env into environment
 
@@ -127,10 +129,13 @@ def create_librarian(librarian: schemas.LibrarianCreate, db: Session = Depends(g
     db_librarian = crud.get_librarian(db, username=librarian.username)
     if db_librarian:
         raise HTTPException(status_code=400, detail="Username already registered")
+    
+    librarian.password = hash_password(librarian.password)
     return crud.create_librarian(db, librarian)
 
+
 # Get list of all librarians
-@router.get("/librarians/list", response_model=list[schemas.LibrarianOut])
+@router.get("/librarians/list/", response_model=list[schemas.LibrarianOut])
 def list_librarians(db: Session = Depends(get_db)):
     librarians = crud.get_all_librarians(db)
     return librarians

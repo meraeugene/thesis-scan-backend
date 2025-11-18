@@ -8,6 +8,7 @@ from app import crud, models
 from app.database import SessionLocal
 from app.utils.emailer import send_reset_email
 from dotenv import load_dotenv
+from app.utils.security import hash_password, verify_password
 
 router = APIRouter()
 
@@ -88,8 +89,7 @@ def reset_password(
     db: Session = Depends(get_db)
 ):
     """
-    Verify reset token and update user's password.
-    Prevent setting the same password as the current one.
+    Verify reset token and update user's password securely.
     """
     payload = verify_reset_token(token)
     email = payload.get("email")
@@ -106,14 +106,15 @@ def reset_password(
             detail="User not found"
         )
 
-    # Check if new password is the same as current
-    if user.password == new_password:
+    # Prevent setting the same password
+    if verify_password(new_password, user.password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="New password cannot be the same as the current password"
         )
 
-    # Update password (use hashed password in production)
-    crud.update_user_password(db, user, new_password)
+    # Hash new password before saving
+    hashed_pw = hash_password(new_password)
+    crud.update_user_password(db, user, hashed_pw)
 
     return {"message": "Password updated successfully"}

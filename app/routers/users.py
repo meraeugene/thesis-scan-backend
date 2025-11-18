@@ -6,6 +6,8 @@ import os
 from datetime import datetime, timedelta
 import jwt
 from dotenv import load_dotenv
+from app.utils.security import hash_password, verify_password
+
 
 load_dotenv()  # loads .env into environment
 
@@ -35,6 +37,7 @@ def verify_token(token: str):
     except:
         return None
 
+
 @router.post("/login/")
 def unified_login(
     username: str = Form(...),
@@ -44,9 +47,10 @@ def unified_login(
     """
     Automatically detects whether the login is for a student or librarian.
     """
+
     # 1. Try match as STUDENT first
     user = crud.get_user(db, student_id=username)
-    if user and user.password == password:
+    if user and verify_password(password, user.password):  # use hashed verification
         
         # Update last login
         user.last_login = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -66,7 +70,7 @@ def unified_login(
 
     # 2. Try match as LIBRARIAN
     librarian = crud.get_librarian_by_username(db, username=username)
-    if librarian and librarian.password == password:
+    if librarian and verify_password(password, librarian.password):  # use hashed verification
 
         token = create_token({
             "librarian_id": librarian.id,
@@ -85,6 +89,7 @@ def unified_login(
         status_code=401,
         detail="These credentials do not match our records."
     )
+
 
 # # User login endpoint
 # @router.post("/login/")
@@ -204,6 +209,9 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = crud.get_user(db, student_id=user.student_id)
     if db_user:
         raise HTTPException(status_code=400, detail="Student ID already registered")
+    
+    # Hash password before storing
+    user.password = hash_password(user.password)
     return crud.create_user(db, user)
 
 # Delete user by ID
