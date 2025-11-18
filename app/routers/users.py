@@ -35,24 +35,75 @@ def verify_token(token: str):
     except:
         return None
 
-# User login endpoint
 @router.post("/login/")
-def login(student_id: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
-    user = crud.get_user(db, student_id=student_id)
-    if not user or user.password != password:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="These credentials do not match our records.")
-    
-    # Update last login time
-    user.last_login = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    db.commit()
+def unified_login(
+    username: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    """
+    Automatically detects whether the login is for a student or librarian.
+    """
+    # 1. Try match as STUDENT first
+    user = crud.get_user(db, student_id=username)
+    if user and user.password == password:
+        
+        # Update last login
+        user.last_login = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        db.commit()
 
-     # Create login token
-    token = create_token({"user_id": user.id, "student_id": user.student_id, "role": "user"})
+        token = create_token({
+            "user_id": user.id,
+            "student_id": user.student_id,
+            "role": "student"
+        })
+
+        return {
+            "token": token,
+            "id": user.id,
+            "role": "student"
+        }
+
+    # 2. Try match as LIBRARIAN
+    librarian = crud.get_librarian_by_username(db, username=username)
+    if librarian and librarian.password == password:
+
+        token = create_token({
+            "librarian_id": librarian.id,
+            "username": librarian.username,
+            "role": "librarian"
+        })
+
+        return {
+            "token": token,
+            "id": librarian.id,
+            "role": "librarian"
+        }
+
+    # 3. If neither matched → invalid credentials
+    raise HTTPException(
+        status_code=401,
+        detail="These credentials do not match our records."
+    )
+
+# # User login endpoint
+# @router.post("/login/")
+# def login(student_id: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
+#     user = crud.get_user(db, student_id=student_id)
+#     if not user or user.password != password:
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="These credentials do not match our records.")
     
-    return {
-        "token": token,
-        "id": user.id,
-    }
+#     # Update last login time
+#     user.last_login = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+#     db.commit()
+
+#      # Create login token
+#     token = create_token({"user_id": user.id, "student_id": user.student_id, "role": "user"})
+    
+#     return {
+#         "token": token,
+#         "id": user.id,
+#     }
 
 
 # Add bookmark

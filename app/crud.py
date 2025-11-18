@@ -1,9 +1,17 @@
-
 from sqlalchemy.orm import Session
 from app import models, schemas
 from datetime import datetime
 # Librarian CRUD
+def get_all_librarians(db: Session):
+    return db.query(models.Librarian).all()
+
+def get_librarians(db: Session):
+    return db.query(models.Librarian).all()
+
 def get_librarian(db: Session, username: str):
+    return db.query(models.Librarian).filter(models.Librarian.username == username).first()
+
+def get_librarian_by_username(db: Session, username: str):
     return db.query(models.Librarian).filter(models.Librarian.username == username).first()
 
 def get_librarian_by_id(db: Session, librarian_id: int):

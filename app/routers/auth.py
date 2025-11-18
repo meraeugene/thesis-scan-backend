@@ -128,3 +128,20 @@ def create_librarian(librarian: schemas.LibrarianCreate, db: Session = Depends(g
     if db_librarian:
         raise HTTPException(status_code=400, detail="Username already registered")
     return crud.create_librarian(db, librarian)
+
+# Get list of all librarians
+@router.get("/librarians/list", response_model=list[schemas.LibrarianOut])
+def list_librarians(db: Session = Depends(get_db)):
+    librarians = crud.get_all_librarians(db)
+    return librarians
+
+# Delete librarian by ID
+@router.delete("/librarians/{librarian_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_librarian(librarian_id: int, db: Session = Depends(get_db)):
+    librarian = crud.get_librarian_by_id(db, librarian_id=librarian_id)
+    if not librarian:
+        raise HTTPException(status_code=404, detail="Librarian not found")
+
+    db.delete(librarian)
+    db.commit()
+    return {"detail": "Librarian deleted successfully"}

@@ -18,7 +18,7 @@ class Thesis(Base):
 
 class User(Base):
   __tablename__ = "users"
-  id = Column(Integer, primary_key=True, index=True)
+  id = Column(Integer, primary_key=True, index=True, autoincrement=True)
   full_name = Column(String, nullable=False)
   program_course = Column(String, nullable=False)
   student_id = Column(String, unique=True, index=True, nullable=False)
@@ -54,7 +54,7 @@ class SearchHistory(Base):
 # Librarian model
 class Librarian(Base):
   __tablename__ = "librarians"
-  id = Column(Integer, primary_key=True, index=True)
+  id = Column(Integer, primary_key=True, index=True, autoincrement=True)
   full_name = Column(String, nullable=False)
   email = Column(String, unique=True, index=True, nullable=False)
   username = Column(String, unique=True, index=True, nullable=False)
