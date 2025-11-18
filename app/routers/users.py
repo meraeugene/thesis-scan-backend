@@ -169,7 +169,7 @@ async def update_user(
         raise HTTPException(status_code=404, detail="User not found")
     user.email = email
     if password:
-        user.password = password
+        user.password = hash_password(password)
     if profile_picture:
         ext = os.path.splitext(profile_picture.filename)[1]
         timestamp = int(datetime.now().timestamp())

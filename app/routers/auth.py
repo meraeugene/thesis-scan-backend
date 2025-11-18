@@ -82,7 +82,7 @@ async def update_librarian(
     if contact is not None:
         librarian.contact = contact
     if password:
-        librarian.password = password
+        librarian.password = hash_password(password)
 
     # Handle profile picture
     if profile_picture:
