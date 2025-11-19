@@ -1,5 +1,5 @@
 # backend/app/models.py
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Column, Integer, String, Text, Boolean
 from sqlalchemy.types import Date
 from app.database import Base
 
@@ -14,6 +14,7 @@ class Thesis(Base):
   abstract = Column(Text, nullable=True)
   keywords = Column(String, nullable=True)
   date_uploaded = Column(String, nullable=False)
+  is_deleted = Column(Boolean, default=False)
 
 
 class User(Base):

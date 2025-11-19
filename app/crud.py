@@ -93,23 +93,51 @@ def create_thesis(db: Session, thesis: schemas.ThesisCreate):
     db.refresh(db_thesis)
     return db_thesis
 
+# Get a specific thesis by ID (exclude deleted)
 def get_thesis(db: Session, thesis_id: int):
-    return db.query(models.Thesis).filter(models.Thesis.id == thesis_id).first()
+    return db.query(models.Thesis).filter(
+        models.Thesis.id == thesis_id,
+        models.Thesis.is_deleted == False
+    ).first()
 
+# Get all theses (exclude deleted by default)
 def get_theses(db: Session):
-    return db.query(models.Thesis).all()
+    return db.query(models.Thesis).filter(models.Thesis.is_deleted == False).all()
 
+# Get deleted theses
+def get_deleted_theses(db: Session):
+    return db.query(models.Thesis).filter(models.Thesis.is_deleted == True).all()
+
+# Soft-delete thesis
 def delete_thesis(db: Session, thesis_id: int):
     thesis = db.query(models.Thesis).filter(models.Thesis.id == thesis_id).first()
     if thesis:
-        # Delete related bookmarks and search history
-        db.query(models.Bookmark).filter(models.Bookmark.thesis_id == thesis_id).delete()
-        db.query(models.SearchHistory).filter(models.SearchHistory.thesis_id == thesis_id).delete()
-        # Delete the thesis
-        db.delete(thesis)
+        thesis.is_deleted = True
         db.commit()
         return True
     return False
+
+# Restore thesis
+def restore_thesis(db: Session, thesis_id: int):
+    thesis = db.query(models.Thesis).filter(models.Thesis.id == thesis_id, models.Thesis.is_deleted==True).first()
+    if thesis:
+        thesis.is_deleted = False
+        db.commit()
+        db.refresh(thesis)
+        return thesis
+    return None
+
+# def delete_thesis(db: Session, thesis_id: int):
+#     thesis = db.query(models.Thesis).filter(models.Thesis.id == thesis_id).first()
+#     if thesis:
+#         # Delete related bookmarks and search history
+#         db.query(models.Bookmark).filter(models.Bookmark.thesis_id == thesis_id).delete()
+#         db.query(models.SearchHistory).filter(models.SearchHistory.thesis_id == thesis_id).delete()
+#         # Delete the thesis
+#         db.delete(thesis)
+#         db.commit()
+#         return True
+#     return False
 
 def get_users(db: Session):
     return db.query(models.User).all()
