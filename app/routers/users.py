@@ -53,7 +53,7 @@ def unified_login(
     if user and verify_password(password, user.password):  # use hashed verification
         
         # Update last login
-        # user.last_login = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        user.last_login = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         db.commit()
 
         token = create_token({
