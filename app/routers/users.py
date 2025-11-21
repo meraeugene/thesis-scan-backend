@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import jwt
 from dotenv import load_dotenv
 from app.utils.security import hash_password, verify_password
+from zoneinfo import ZoneInfo
 
 
 load_dotenv()  # loads .env into environment
@@ -53,7 +54,10 @@ def unified_login(
     if user and verify_password(password, user.password):  # use hashed verification
         
         # Update last login
-        user.last_login = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # Use PH TIME
+        # ph_time = datetime.now(pytz.timezone("Asia/Manila"))
+        ph_time = datetime.now(ZoneInfo("Asia/Manila"))
+        user.last_login = ph_time.strftime('%Y-%m-%d %H:%M:%S')
         db.commit()
 
         token = create_token({
