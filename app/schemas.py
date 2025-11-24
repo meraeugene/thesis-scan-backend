@@ -38,6 +38,12 @@ class ThesisOut(ThesisCreate):
 
     class Config:
         from_attributes = True  # For Pydantic v2
+        
+class ThesisWithViews(ThesisOut):
+    views: int  # number of times thesis was accessed
+
+    class Config:
+        from_attributes = True
 
 class UserCreate(BaseModel):
     full_name: str

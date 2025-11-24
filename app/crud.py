@@ -1,15 +1,14 @@
+# backend/app/crud.py
 from sqlalchemy.orm import Session
-from app import models, schemas
+from sqlalchemy import func
 from datetime import datetime, date
+from app import models, schemas
+
+# -----------------------------
 # Librarian CRUD
+# -----------------------------
 def get_all_librarians(db: Session):
     return db.query(models.Librarian).all()
-
-def get_librarians(db: Session):
-    return db.query(models.Librarian).all()
-
-def get_librarian(db: Session, username: str):
-    return db.query(models.Librarian).filter(models.Librarian.username == username).first()
 
 def get_librarian_by_username(db: Session, username: str):
     return db.query(models.Librarian).filter(models.Librarian.username == username).first()
@@ -24,55 +23,18 @@ def create_librarian(db: Session, librarian: schemas.LibrarianCreate):
     db.refresh(db_librarian)
     return db_librarian
 
+
+# -----------------------------
+# User CRUD
+# -----------------------------
 def get_user(db: Session, student_id: str):
     return db.query(models.User).filter(models.User.student_id == student_id).first()
 
 def get_user_by_id(db: Session, id: str):
     return db.query(models.User).filter(models.User.id == id).first()
 
-# Bookmark CRUD
-def add_bookmark(db: Session, bookmark: schemas.BookmarkCreate):
-    db_bookmark = models.Bookmark(**bookmark.dict())
-    db.add(db_bookmark)
-    db.commit()
-    db.refresh(db_bookmark)
-    return db_bookmark
-
-def get_bookmarks(db: Session, student_id: str):
-    return db.query(models.Bookmark).filter(models.Bookmark.student_id == student_id).all()
-
-# Get a specific bookmark
-def get_bookmark(db: Session, student_id: str, thesis_id: int):
-    return (
-        db.query(models.Bookmark)
-        .filter(
-            models.Bookmark.student_id == student_id,
-            models.Bookmark.thesis_id == thesis_id
-        )
-        .first()
-    )
-
-# Delete a bookmark
-def delete_bookmark(db: Session, bookmark: models.Bookmark):
-    db.delete(bookmark)
-    db.commit()
-    return True
-
-
-# SearchHistory CRUD
-def add_search_history(db: Session, history: schemas.SearchHistoryCreate):
-    data = history.dict()
-    data['access_location'] = 'Off-Campus'
-    # Use current timestamp for date_accessed
-    data['date_accessed'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    db_history = models.SearchHistory(**data)
-    db.add(db_history)
-    db.commit()
-    db.refresh(db_history)
-    return db_history
-
-def get_search_history(db: Session, student_id: str):
-    return db.query(models.SearchHistory).filter(models.SearchHistory.student_id == student_id).all()
+def get_users(db: Session):
+    return db.query(models.User).all()
 
 def create_user(db: Session, user: schemas.UserCreate):
     user_data = user.dict()
@@ -83,6 +45,66 @@ def create_user(db: Session, user: schemas.UserCreate):
     db.refresh(db_user)
     return db_user
 
+def delete_user(db: Session, user):
+    db.delete(user)
+    db.commit()
+
+def get_user_by_email(db: Session, email: str):
+    return db.query(models.User).filter(models.User.email == email).first()
+
+def update_user_password(db: Session, user, new_password: str):
+    user.password = new_password
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+# -----------------------------
+# Bookmark CRUD
+# -----------------------------
+def add_bookmark(db: Session, bookmark: schemas.BookmarkCreate):
+    db_bookmark = models.Bookmark(**bookmark.dict())
+    db.add(db_bookmark)
+    db.commit()
+    db.refresh(db_bookmark)
+    return db_bookmark
+
+def get_bookmarks(db: Session, student_id: str):
+    return db.query(models.Bookmark).filter(models.Bookmark.student_id == student_id).all()
+
+def get_bookmark(db: Session, student_id: str, thesis_id: int):
+    return (
+        db.query(models.Bookmark)
+        .filter(models.Bookmark.student_id == student_id, models.Bookmark.thesis_id == thesis_id)
+        .first()
+    )
+
+def delete_bookmark(db: Session, bookmark: models.Bookmark):
+    db.delete(bookmark)
+    db.commit()
+    return True
+
+
+# -----------------------------
+# SearchHistory CRUD
+# -----------------------------
+def add_search_history(db: Session, history: schemas.SearchHistoryCreate):
+    data = history.dict()
+    data['access_location'] = 'Off-Campus'
+    data['date_accessed'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    db_history = models.SearchHistory(**data)
+    db.add(db_history)
+    db.commit()
+    db.refresh(db_history)
+    return db_history
+
+def get_search_history(db: Session, student_id: str):
+    return db.query(models.SearchHistory).filter(models.SearchHistory.student_id == student_id).all()
+
+
+# -----------------------------
+# Thesis CRUD
+# -----------------------------
 def create_thesis(db: Session, thesis: schemas.ThesisCreate):
     thesis_data = thesis.dict()
     if not thesis_data.get('date_uploaded'):
@@ -93,22 +115,15 @@ def create_thesis(db: Session, thesis: schemas.ThesisCreate):
     db.refresh(db_thesis)
     return db_thesis
 
-# Get a specific thesis by ID (exclude deleted)
 def get_thesis(db: Session, thesis_id: int):
-    return db.query(models.Thesis).filter(
-        models.Thesis.id == thesis_id,
-        models.Thesis.is_deleted == False
-    ).first()
+    return db.query(models.Thesis).filter(models.Thesis.id == thesis_id, models.Thesis.is_deleted == False).first()
 
-# Get all theses (exclude deleted by default)
 def get_theses(db: Session):
     return db.query(models.Thesis).filter(models.Thesis.is_deleted == False).all()
 
-# Get deleted theses
 def get_deleted_theses(db: Session):
     return db.query(models.Thesis).filter(models.Thesis.is_deleted == True).all()
 
-# Soft-delete thesis
 def delete_thesis(db: Session, thesis_id: int):
     thesis = db.query(models.Thesis).filter(models.Thesis.id == thesis_id).first()
     if thesis:
@@ -117,51 +132,47 @@ def delete_thesis(db: Session, thesis_id: int):
         return True
     return False
 
-# Restore thesis
 def restore_thesis(db: Session, thesis_id: int):
-    thesis = db.query(models.Thesis).filter(
-        models.Thesis.id == thesis_id, 
-        models.Thesis.is_deleted==True
-    ).first()
+    thesis = db.query(models.Thesis).filter(models.Thesis.id == thesis_id, models.Thesis.is_deleted == True).first()
     if thesis:
         thesis.is_deleted = False
-        thesis.date_restored = date.today()  # Only store the date
+        thesis.date_restored = date.today()
         db.commit()
         db.refresh(thesis)
         return thesis
     return None
 
-# def delete_thesis(db: Session, thesis_id: int):
-#     thesis = db.query(models.Thesis).filter(models.Thesis.id == thesis_id).first()
-#     if thesis:
-#         # Delete related bookmarks and search history
-#         db.query(models.Bookmark).filter(models.Bookmark.thesis_id == thesis_id).delete()
-#         db.query(models.SearchHistory).filter(models.SearchHistory.thesis_id == thesis_id).delete()
-#         # Delete the thesis
-#         db.delete(thesis)
-#         db.commit()
-#         return True
-#     return False
 
-def get_users(db: Session):
-    return db.query(models.User).all()
+# -----------------------------
+# Thesis Views / Reports
+# -----------------------------
+def get_theses_with_views(db: Session):
+    """
+    Returns all theses along with their view count (based on SearchHistory).
+    """
+    results = (
+        db.query(
+            models.Thesis,
+            func.count(models.SearchHistory.id).label("views")
+        )
+        .outerjoin(models.SearchHistory, models.Thesis.id == models.SearchHistory.thesis_id)
+        .filter(models.Thesis.is_deleted == False)
+        .group_by(models.Thesis.id)
+        .all()
+    )
 
-def delete_user(db: Session, user):
-    db.delete(user)
-    db.commit()
-
-def get_user_by_email(db: Session, email: str):
-    return db.query(models.User).filter(models.User.email == email).first()
-
-def update_user_password(db: Session, user, new_password: str):
-    # If you store plaintext passwords (not recommended), assign directly:
-    user.password = new_password
-
-    # If you want hashed passwords (recommended), uncomment below and install passlib:
-    # from passlib.context import CryptContext
-    # pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    # user.password = pwd_context.hash(new_password)
-
-    db.commit()
-    db.refresh(user)
-    return user
+    return [
+        schemas.ThesisWithViews(
+            id=thesis.id,
+            title=thesis.title,
+            authors=thesis.authors,
+            program_course=thesis.program_course,
+            date_published=thesis.date_published,
+            edition_version=thesis.edition_version,
+            abstract=thesis.abstract,
+            keywords=thesis.keywords,
+            date_uploaded=thesis.date_uploaded,
+            views=views
+        )
+        for thesis, views in results
+    ]

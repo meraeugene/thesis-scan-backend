@@ -17,10 +17,16 @@ def get_db():
 # Theses Routes
 # -------------------
 
+
 # 1. List all theses (active)
 @router.get("/theses", response_model=list[schemas.ThesisOut])
 def list_theses(db: Session = Depends(get_db)):
     return crud.get_theses(db)
+
+# 1a. List theses with view counts
+@router.get("/theses/views", response_model=list[schemas.ThesisWithViews])
+def list_theses_with_views(db: Session = Depends(get_db)):
+    return crud.get_theses_with_views(db)
 
 # 2. List deleted theses
 @router.get("/theses/deleted", response_model=list[schemas.ThesisOut])
