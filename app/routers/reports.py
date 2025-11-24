@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from app import  database, crud
-from app import models
+from app import  database, crud, models
 from datetime import datetime, timedelta
 
 def get_db():
@@ -19,8 +18,8 @@ def get_statistics(db: Session = Depends(get_db)):
     # ---------------------------
     # Total counts
     # ---------------------------
-    total_theses = db.query(func.count(models.Thesis.id)).scalar() or 0
-    total_users = db.query(func.count(models.User.id)).scalar() or 0
+    total_theses = db.query(func.count(models.Thesis.id)).scalar()
+    total_users = db.query(func.count(models.User.id)).scalar()
 
     # ---------------------------
     # Theses by program
@@ -47,7 +46,7 @@ def get_statistics(db: Session = Depends(get_db)):
     # ---------------------------
     # Active users in last 7 days
     # ---------------------------
-    seven_days_ago = datetime.now() - timedelta(days=7)
+    seven_days_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
     active_users_this_week = (
         db.query(func.count(func.distinct(models.SearchHistory.student_id)))
         .filter(models.SearchHistory.date_accessed >= seven_days_ago)
