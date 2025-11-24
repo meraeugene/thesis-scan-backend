@@ -1,94 +1,69 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from app import  database, crud
-
-def get_db():
-    db = database.SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+from sqlalchemy import func
+from datetime import datetime, timedelta
+from app import models, crud
+from app.database import get_db
 
 router = APIRouter()
 
 @router.get("/reports/stats/")
-def get_stats(db: Session = Depends(get_db)):
-    theses = crud.get_theses_with_views(db)  # returns list of theses with 'views'
-
-    total_theses = len(theses)
-    total_views = sum(t.views for t in theses)
-
-    # Most accessed (top by views)
-    most_accessed = sorted(theses, key=lambda t: t.views, reverse=True)
+def get_statistics(db: Session = Depends(get_db)):
+    # Get all theses with their view counts
+    theses_with_views = crud.get_theses_with_views(db)  # returns list of ThesisWithViews
+    
+    # Total theses and total views
+    total_theses = len(theses_with_views)
+    total_views = sum(t.views for t in theses_with_views)
+    
+    # Most accessed theses (top 5 by views)
+    most_accessed_sorted = sorted(theses_with_views, key=lambda t: t.views, reverse=True)[:5]
+    most_accessed_data = [
+        {
+            "thesis_id": t.id,
+            "title": t.title,
+            "views": t.views
+        }
+        for t in most_accessed_sorted
+    ]
+    
+    # Total users
+    total_users = db.query(func.count(models.User.id)).scalar() or 0
+    
+    # Theses count by program
+    theses_by_program = (
+        db.query(
+            models.Thesis.program_course,
+            func.count(models.Thesis.id).label("count")
+        )
+        .group_by(models.Thesis.program_course)
+        .all()
+    )
+    
+    # New users this month
+    first_day_of_month = datetime.now().replace(day=1)
+    new_users_this_month = (
+        db.query(func.count(models.User.id))
+        .filter(models.User.date_registered >= first_day_of_month)
+        .scalar() or 0
+    )
+    
+    # Active users in the last 7 days
+    seven_days_ago = datetime.now() - timedelta(days=7)
+    active_users_this_week = (
+        db.query(func.count(func.distinct(models.SearchHistory.student_id)))
+        .filter(models.SearchHistory.date_accessed >= seven_days_ago)
+        .scalar() or 0
+    )
 
     return {
         "total_theses": total_theses,
         "total_views": total_views,
-        "most_accessed": most_accessed
+        "total_users": total_users,
+        "new_users_this_month": new_users_this_month,
+        "active_users_this_week": active_users_this_week,
+        "theses_by_program": [
+            {"program": program, "count": count} for program, count in theses_by_program
+        ],
+        "most_accessed": most_accessed_data
     }
-
-# @router.get("/reports/stats/")
-# def get_statistics(db: Session = Depends(get_db)):
-#     # Get total number of theses
-#     total_theses = db.query(func.count(models.Thesis.id)).scalar()
-    
-#     # Get total number of users
-#     total_users = db.query(func.count(models.User.id)).scalar()
-    
-#     # Get thesis counts by program
-#     theses_by_program = (
-#         db.query(
-#             models.Thesis.program_course,
-#             func.count(models.Thesis.id).label('count')
-#         )
-#         .group_by(models.Thesis.program_course)
-#         .all()
-#     )
-    
-#     # Get new users created this month
-#     first_day_of_month = datetime.now().replace(day=1).strftime('%Y-%m-%d')
-#     new_users_this_month = (
-#         db.query(func.count(models.User.id))
-#         .filter(models.User.date_registered >= first_day_of_month)
-#         .scalar() or 0
-#     )
-    
-#     # Get unique active users in the last 7 days
-#     seven_days_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-#     active_users_this_week = (
-#         db.query(func.count(func.distinct(models.SearchHistory.student_id)))
-#         .filter(models.SearchHistory.date_accessed >= seven_days_ago)
-#         .scalar() or 0
-#     )
-
-#     # Get most accessed theses
-#     most_accessed = (
-#         db.query(
-#             models.SearchHistory.thesis_id,
-#             models.SearchHistory.book_title,
-#             func.count(models.SearchHistory.id).label('access_count')
-#         )
-#         .group_by(models.SearchHistory.thesis_id, models.SearchHistory.book_title)
-#         .order_by(func.count(models.SearchHistory.id).desc())
-#         .limit(5)
-#         .all()
-#     )
-
-#     return {
-#         "total_theses": total_theses,
-#         "total_users": total_users,
-#         "new_users_this_month": new_users_this_month,
-#         "active_users_this_week": active_users_this_week,
-#         "theses_by_program": [
-#             {"program": program, "count": count}
-#             for program, count in theses_by_program
-#         ],
-#         "most_accessed": [
-#             {
-#                 "thesis_id": thesis_id,
-#                 "title": title,
-#                 "access_count": count
-#             }
-#             for thesis_id, title, count in most_accessed
-#         ]
-#     }
