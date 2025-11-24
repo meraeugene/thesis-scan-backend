@@ -36,7 +36,7 @@ def get_statistics(db: Session = Depends(get_db)):
     # ---------------------------
     # New users this month
     # ---------------------------
-    first_day_of_month = datetime.now().replace(day=1)
+    first_day_of_month = datetime.now().replace(day=1).strftime('%Y-%m-%d')
     new_users_this_month = (
         db.query(func.count(models.User.id))
         .filter(models.User.date_registered >= first_day_of_month)
