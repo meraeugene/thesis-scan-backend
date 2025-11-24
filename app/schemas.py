@@ -31,6 +31,7 @@ class ThesisCreate(BaseModel):
     abstract: str | None = None
     keywords: str | None = None
     date_uploaded: str | None = None  # Will be set automatically if not provided
+    date_restored: date | None = None  # Only store the date
 
 class ThesisOut(ThesisCreate):
     id: int
