@@ -122,6 +122,7 @@ def restore_thesis(db: Session, thesis_id: int):
     thesis = db.query(models.Thesis).filter(models.Thesis.id == thesis_id, models.Thesis.is_deleted==True).first()
     if thesis:
         thesis.is_deleted = False
+        thesis.date_restored = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         db.commit()
         db.refresh(thesis)
         return thesis
