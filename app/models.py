@@ -1,5 +1,5 @@
 # backend/app/models.py
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Text, Boolean
 from sqlalchemy.types import Date
 from app.database import Base
 
@@ -15,7 +15,7 @@ class Thesis(Base):
   keywords = Column(String, nullable=True)
   date_uploaded = Column(String, nullable=False)
   is_deleted = Column(Boolean, default=False)
-  date_restored = Column(DateTime, nullable=True) 
+  date_restored = Column(Date, nullable=True) 
 
 
 class User(Base):

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app import models, schemas
-from datetime import datetime
+from datetime import datetime, date
 # Librarian CRUD
 def get_all_librarians(db: Session):
     return db.query(models.Librarian).all()
@@ -119,10 +119,13 @@ def delete_thesis(db: Session, thesis_id: int):
 
 # Restore thesis
 def restore_thesis(db: Session, thesis_id: int):
-    thesis = db.query(models.Thesis).filter(models.Thesis.id == thesis_id, models.Thesis.is_deleted==True).first()
+    thesis = db.query(models.Thesis).filter(
+        models.Thesis.id == thesis_id, 
+        models.Thesis.is_deleted==True
+    ).first()
     if thesis:
         thesis.is_deleted = False
-        thesis.date_restored = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        thesis.date_restored = date.today()  # Only store the date
         db.commit()
         db.refresh(thesis)
         return thesis
