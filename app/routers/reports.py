@@ -60,20 +60,8 @@ def get_statistics(db: Session = Depends(get_db)):
     theses_with_views = crud.get_theses_with_views(db)
 
     # Sort by views descending
-    most_accessed = sorted(theses_with_views, key=lambda t: t.views, reverse=True)[:5]
-
-    # Format for response
-    most_accessed_data = [
-        {
-            "thesis_id": t.id,
-            "title": t.title,
-            "authors": t.authors,
-            "program_course": t.program_course,
-            "views": t.views
-        }
-        for t in most_accessed
-    ]
-
+    most_accessed = sorted(theses_with_views, key=lambda t: t.views, reverse=True)
+    
     # ---------------------------
     # Response
     # ---------------------------
@@ -85,5 +73,5 @@ def get_statistics(db: Session = Depends(get_db)):
         "theses_by_program": [
             {"program": program, "count": count} for program, count in theses_by_program
         ],
-        "most_accessed": most_accessed_data
+        "most_accessed": most_accessed
     }
